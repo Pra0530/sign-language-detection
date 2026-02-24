@@ -17,6 +17,8 @@ dependencies:
   flutter_tts: ^4.2.0
   camera: ^0.11.1
   percent_indicator: ^4.2.3
+  tflite_flutter: ^0.11.0
+  image: ^4.5.3
 
 dev_dependencies:
   flutter_test:
@@ -25,3 +27,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/ml/
