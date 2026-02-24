@@ -1,0 +1,23 @@
+#!/bin/bash
+for arg in "$@"; do
+  if [[ -e "$arg" ]]; then
+    # if it's a file inside a framework or app bundle, strip xattr from the parent directory too
+    if [[ "$arg" == *.framework/* ]]; then
+       framework_dir="${arg%%.framework/*}.framework"
+       xattr -cr "$framework_dir" 2>/dev/null || true
+    elif [[ "$arg" == *.framework ]]; then
+       xattr -cr "$arg" 2>/dev/null || true
+    elif [[ "$arg" == *.app/* ]]; then
+       app_dir="${arg%%.app/*}.app"
+       xattr -cr "$app_dir" 2>/dev/null || true
+    elif [[ "$arg" == *.app ]]; then
+       xattr -cr "$arg" 2>/dev/null || true
+    fi
+    xattr -cr "$arg" 2>/dev/null || true
+  fi
+done
+echo "Running codesign: $@" >> /tmp/codesign.log
+/usr/bin/codesign "$@" 2>> /tmp/codesign.log
+exitCode=$?
+echo "Exit code: $exitCode" >> /tmp/codesign.log
+exit $exitCode
