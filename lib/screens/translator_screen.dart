@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../models/sign_letter.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_gradients.dart';
 import '../widgets/glass_card.dart';
@@ -142,12 +143,18 @@ class _TranslatorScreenState extends State<TranslatorScreen>
             _currentLetter = result.letter;
             _confidence = result.confidence;
 
-            if (_currentLetter == _lastLetter) {
-              _holdCount++;
+            // Only consider letters with > 50% confidence
+            if (_confidence > 0.5) {
+              if (_currentLetter == _lastLetter) {
+                _holdCount++;
+              } else {
+                _holdCount = 0;
+              }
+              _lastLetter = _currentLetter;
             } else {
               _holdCount = 0;
+              _lastLetter = null;
             }
-            _lastLetter = _currentLetter;
 
             // Update stability
             _stability = (_holdCount / 4.0).clamp(0.0, 1.0);
@@ -575,6 +582,12 @@ class _TranslatorScreenState extends State<TranslatorScreen>
                     Row(
                       children: [
                         _buildActionButton(
+                          Icons.help_outline_rounded,
+                          'Gesture Guide',
+                          () => _showGestureGuide(context),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildActionButton(
                           Icons.volume_up_rounded,
                           'Speak',
                           () => provider.speakText(),
@@ -762,6 +775,137 @@ class _TranslatorScreenState extends State<TranslatorScreen>
           ),
         );
       },
+    );
+  }
+
+  void _showGestureGuide(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: BoxDecoration(
+          color: AppColors.bgDark,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AppColors.glassDarkBorder),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 20),
+              height: 4,
+              width: 40,
+              decoration: BoxDecoration(
+                color: AppColors.textTertiaryDark,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text(
+              'ISL Gesture Guide',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                physics: const BouncingScrollPhysics(),
+                itemCount: SignLetter.alphabet.length,
+                itemBuilder: (context, index) {
+                  final letter = SignLetter.alphabet[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDarkSecondary,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.glassDarkBorder),
+                    ),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(
+                        dividerColor: Colors.transparent,
+                      ),
+                      child: ExpansionTile(
+                        collapsedIconColor: AppColors.primaryTeal,
+                        iconColor: AppColors.accentOrange,
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: AppGradients.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            letter.letter,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          'Letter ${letter.letter}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimaryDark,
+                            fontSize: 16,
+                          ),
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Action',
+                                  style: TextStyle(
+                                    color: AppColors.primaryTeal,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  letter.description,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondaryDark,
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Hint',
+                                  style: TextStyle(
+                                    color: AppColors.accentOrange,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  letter.hint,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondaryDark,
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
