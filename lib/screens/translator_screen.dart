@@ -48,7 +48,12 @@ class _TranslatorScreenState extends State<TranslatorScreen>
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(reverse: true);
+    _initDetector();
     _initCamera();
+  }
+
+  Future<void> _initDetector() async {
+    await _detector.initialize();
   }
 
   Future<void> _initCamera() async {
