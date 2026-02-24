@@ -10,6 +10,7 @@ import '../widgets/glass_card.dart';
 import '../widgets/confidence_bar.dart';
 import '../widgets/stability_indicator.dart';
 import '../widgets/gradient_button.dart';
+import '../services/sign_language_detector.dart';
 
 class TranslatorScreen extends StatefulWidget {
   const TranslatorScreen({super.key});
@@ -26,8 +27,8 @@ class _TranslatorScreenState extends State<TranslatorScreen>
   bool _isFrontCamera = true;
   String _cameraError = '';
 
-  Timer? _simulationTimer;
-  final Random _random = Random();
+  final SignLanguageDetector _detector = SignLanguageDetector();
+  bool _isProcessingFrame = false;
   final List<String> _letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
   String _currentLetter = '';
@@ -113,45 +114,59 @@ class _TranslatorScreenState extends State<TranslatorScreen>
 
   @override
   void dispose() {
-    _simulationTimer?.cancel();
     _pulseController.dispose();
     _cameraController?.dispose();
+    _detector.dispose();
     super.dispose();
   }
 
   void _startDetection() {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    
     setState(() => _isRunning = true);
-    // Simulated detection on camera frames
-    _simulationTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
-      if (!mounted) return;
-      setState(() {
-        if (_random.nextDouble() > 0.3 && _lastLetter != null) {
-          _currentLetter = _lastLetter!;
-          _holdCount++;
-        } else {
-          _currentLetter = _letters[_random.nextInt(_letters.length)];
-          if (_currentLetter != _lastLetter) {
-            _holdCount = 0;
-          }
-          _lastLetter = _currentLetter;
-        }
 
-        _confidence = 0.5 + _random.nextDouble() * 0.5;
-        _stability = (_holdCount / 4.0).clamp(0.0, 1.0);
-        _isStable = _holdCount >= 4;
+    _cameraController!.startImageStream((CameraImage image) async {
+      if (_isProcessingFrame || !mounted || !_isRunning) return;
+      
+      _isProcessingFrame = true;
 
-        if (_isStable) {
-          final provider = Provider.of<AppProvider>(context, listen: false);
-          provider.confirmLetter(_currentLetter);
-          _holdCount = 0;
-          _lastLetter = null;
+      try {
+        final result = await _detector.processFrame(image);
+        if (result != null && mounted && _isRunning) {
+          setState(() {
+            _currentLetter = result.letter;
+            _confidence = result.confidence;
+
+            if (_currentLetter == _lastLetter) {
+              _holdCount++;
+            } else {
+              _holdCount = 0;
+            }
+            _lastLetter = _currentLetter;
+
+            // Update stability
+            _stability = (_holdCount / 4.0).clamp(0.0, 1.0);
+            _isStable = _holdCount >= 4;
+
+            if (_isStable) {
+              final provider = Provider.of<AppProvider>(context, listen: false);
+              provider.confirmLetter(_currentLetter);
+              _holdCount = 0;
+              _lastLetter = null;
+            }
+          });
         }
-      });
+      } finally {
+        _isProcessingFrame = false;
+      }
     });
   }
 
   void _stopDetection() {
-    _simulationTimer?.cancel();
+    if (_cameraController != null && _cameraController!.value.isStreamingImages) {
+      _cameraController!.stopImageStream();
+    }
+    
     setState(() {
       _isRunning = false;
       _currentLetter = '';
